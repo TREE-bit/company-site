@@ -4,7 +4,8 @@ const navItems = [
   { href: "/", label: "首页" },
   { href: "/products", label: "产品" },
   { href: "/about", label: "关于我们" },
-  { href: "/contact", label: "联系我们" }
+  { href: "/contact", label: "联系我们" },
+  { href: "/admin", label: "管理后台" }
 ];
 
 export function Header() {

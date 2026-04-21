@@ -1,0 +1,20 @@
+[
+  {
+    "id": "8c49f7ef-c09b-4f79-8071-7bf367114b19",
+    "title": "测试商品",
+    "shortDescription": "这里是商品描述",
+    "description": "这里是商品的详情描述",
+    "imageUrl": "https://zh.wikipedia.org/wiki/Bliss#/media/File:Windows_XP_Bliss.jpg",
+    "createdAt": "2026-04-21T12:55:07.146Z",
+    "updatedAt": "2026-04-21T12:55:07.146Z"
+  },
+  {
+    "id": "bee4fc4d-0f52-4957-ac47-b85fc03ad34e",
+    "title": "111",
+    "shortDescription": "222",
+    "description": "333",
+    "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e",
+    "createdAt": "2026-04-21T12:56:12.954Z",
+    "updatedAt": "2026-04-21T12:56:12.954Z"
+  }
+]
