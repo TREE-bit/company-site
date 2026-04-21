@@ -9,8 +9,18 @@ function readEnv(name: string): string {
 }
 
 function normalizeSupabaseUrl(rawUrl: string) {
-  const trimmed = rawUrl.trim().replace(/\/+$/, "");
-  return trimmed.replace(/\/rest\/v1$/i, "");
+  const unquoted = rawUrl.trim().replace(/^['"]|['"]$/g, "");
+  const withProtocol = /^https?:\/\//i.test(unquoted) ? unquoted : `https://${unquoted}`;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(withProtocol);
+  } catch {
+    throw new Error("SUPABASE_URL format is invalid");
+  }
+
+  // Always keep only origin; ignore accidental path like /rest/v1 or others.
+  return parsed.origin;
 }
 
 export function getSupabaseAdminClient() {

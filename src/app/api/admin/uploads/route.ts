@@ -50,6 +50,13 @@ function isInvalidStoragePath(storagePath: string) {
   );
 }
 
+function normalizeBucketName(rawBucket: string | undefined) {
+  if (!rawBucket) {
+    return "";
+  }
+  return rawBucket.trim().replace(/^['"]|['"]$/g, "").replace(/^\/+|\/+$/g, "");
+}
+
 function mapUploadError(message: string) {
   const lowered = message.toLowerCase();
 
@@ -109,9 +116,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "图片大小不能超过 5MB" }, { status: 400 });
     }
 
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET;
+    const bucket = normalizeBucketName(process.env.SUPABASE_STORAGE_BUCKET);
     if (!bucket) {
       return NextResponse.json({ error: "SUPABASE_STORAGE_BUCKET 未配置" }, { status: 500 });
+    }
+    if (bucket.includes("/") || bucket.includes("://") || bucket.includes("\\")) {
+      return NextResponse.json(
+        { error: "SUPABASE_STORAGE_BUCKET 格式非法，必须是纯 bucket 名称", errorCode: "STORAGE_INVALID_BUCKET" },
+        { status: 500 }
+      );
     }
 
     const objectPath = buildSafeStoragePath(file);
