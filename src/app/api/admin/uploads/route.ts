@@ -32,6 +32,66 @@ function getSafeExtension(file: File) {
   return picked.replace(/[^a-z0-9]/g, "") || "jpg";
 }
 
+function buildSafeStoragePath(file: File) {
+  const extension = getSafeExtension(file);
+  // Keep processing original filename to avoid trusting raw file.name directly.
+  sanitizeFilenameBase(file.name || "");
+  const timestamp = Date.now();
+  const random = randomUUID().replace(/-/g, "").slice(0, 12);
+  return `uploads/${timestamp}-${random}.${extension}`;
+}
+
+function isInvalidStoragePath(storagePath: string) {
+  return (
+    !storagePath ||
+    storagePath.startsWith("/") ||
+    storagePath.includes("://") ||
+    storagePath.includes("\\")
+  );
+}
+
+function mapUploadError(message: string) {
+  const lowered = message.toLowerCase();
+
+  if (lowered.includes("invalid path specified in request url")) {
+    return {
+      status: 500,
+      code: "STORAGE_INVALID_URL",
+      message: "上传失败：Supabase URL 配置异常，请检查 SUPABASE_URL 是否为项目根地址。"
+    };
+  }
+
+  if (lowered.includes("bucket") && lowered.includes("not found")) {
+    return {
+      status: 500,
+      code: "STORAGE_BUCKET_NOT_FOUND",
+      message: "上传失败：Storage bucket 不存在，请检查 SUPABASE_STORAGE_BUCKET 配置。"
+    };
+  }
+
+  if (lowered.includes("row-level security") || lowered.includes("permission")) {
+    return {
+      status: 403,
+      code: "STORAGE_PERMISSION_DENIED",
+      message: "上传失败：Storage 权限不足，请检查 service role key 或 bucket 策略。"
+    };
+  }
+
+  if (lowered.includes("duplicate")) {
+    return {
+      status: 409,
+      code: "STORAGE_DUPLICATE_OBJECT",
+      message: "上传失败：同名文件已存在，请重试。"
+    };
+  }
+
+  return {
+    status: 500,
+    code: "STORAGE_UPLOAD_FAILED",
+    message: `上传失败：${message}`
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -54,12 +114,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "SUPABASE_STORAGE_BUCKET 未配置" }, { status: 500 });
     }
 
-    const extension = getSafeExtension(file);
-    const originalBase = sanitizeFilenameBase(file.name || "");
-    const timestamp = Date.now();
-    const random = randomUUID().replace(/-/g, "").slice(0, 12);
-    const objectPath = `uploads/${timestamp}-${random}-${originalBase}.${extension}`;
+    const objectPath = buildSafeStoragePath(file);
+    if (isInvalidStoragePath(objectPath)) {
+      return NextResponse.json({ error: "上传失败：生成了非法存储路径", errorCode: "STORAGE_INVALID_OBJECT_PATH" }, { status: 500 });
+    }
     const buffer = Buffer.from(await file.arrayBuffer());
+    console.info(
+      `[upload-image] bucket=${bucket} objectPath=${objectPath} contentType=${file.type} size=${file.size}`
+    );
 
     const supabase = getSupabaseAdminClient();
 
@@ -69,7 +131,14 @@ export async function POST(request: Request) {
     });
 
     if (uploadError) {
-      return NextResponse.json({ error: `上传失败: ${uploadError.message}` }, { status: 500 });
+      const mapped = mapUploadError(uploadError.message);
+      console.error(
+        `[upload-image] failed bucket=${bucket} objectPath=${objectPath} code=${mapped.code} raw=${uploadError.message}`
+      );
+      return NextResponse.json(
+        { error: mapped.message, errorCode: mapped.code, rawError: uploadError.message },
+        { status: mapped.status }
+      );
     }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
@@ -78,7 +147,7 @@ export async function POST(request: Request) {
         data: {
           imageUrl: data.publicUrl,
           path: objectPath,
-          filename: `${originalBase}.${extension}`,
+          filename: path.basename(objectPath),
           contentType: file.type,
           size: file.size
         }
@@ -87,7 +156,8 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "上传失败";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const mapped = mapUploadError(message);
+    return NextResponse.json({ error: mapped.message, errorCode: mapped.code, rawError: message }, { status: mapped.status });
   }
 }
 

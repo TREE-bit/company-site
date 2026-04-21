@@ -87,3 +87,30 @@ npm run migrate:products
 2. 上传图片调用 `/api/admin/uploads`，文件写入 Supabase Storage。
 3. `/products` 从 Supabase 读取并展示商品列表。
 4. `/products/[id]` 从 Supabase 读取并展示商品详情。
+
+## 线上自检清单
+
+当线上上传图片报错时，建议按以下顺序排查：
+
+1) 访问环境变量检查接口（需后台鉴权）
+
+```bash
+GET /api/admin/env-check
+```
+
+- 确认 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`SUPABASE_STORAGE_BUCKET`、`ADMIN_PASSCODE` 均为 `exists: true`
+- `SUPABASE_URL` 应显示为 `https://<project-ref>.supabase.co`（不应包含 `/rest/v1`）
+
+2) 访问 Storage 连通性检查接口（需后台鉴权）
+
+```bash
+GET /api/admin/storage-check
+```
+
+- 返回 `ok: true` 表示 bucket 可访问
+- 若失败会返回明确错误，例如 bucket 名错误或权限问题
+
+3) 再测试后台上传
+
+- 从 `/admin` 选择图片并点击“上传图片”
+- 若仍失败，优先检查 Vercel 环境变量是否与本地一致，并确认已重新部署

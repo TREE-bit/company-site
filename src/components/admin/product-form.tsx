@@ -24,6 +24,28 @@ type ProductFormProps = {
   onSaved?: () => void;
 };
 
+type UploadResponse = {
+  error?: string;
+  errorCode?: string;
+  rawError?: string;
+  data?: { imageUrl?: string };
+};
+
+function getUploadErrorHint(errorCode?: string, fallback?: string) {
+  switch (errorCode) {
+    case "STORAGE_INVALID_URL":
+      return "上传失败：请检查线上 SUPABASE_URL，必须是 https://<project-ref>.supabase.co（不能带 /rest/v1）。";
+    case "STORAGE_BUCKET_NOT_FOUND":
+      return "上传失败：未找到 Storage bucket，请检查 SUPABASE_STORAGE_BUCKET 与 Supabase 控制台 bucket 名是否一致。";
+    case "STORAGE_PERMISSION_DENIED":
+      return "上传失败：Storage 权限不足，请检查 SUPABASE_SERVICE_ROLE_KEY 或 bucket 策略。";
+    case "STORAGE_DUPLICATE_OBJECT":
+      return "上传失败：文件对象重名，请重试。";
+    default:
+      return fallback ?? "图片上传失败";
+  }
+}
+
 export function ProductForm({ editingProduct, onCancelEdit, onSaved }: ProductFormProps) {
   const [form, setForm] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
@@ -70,9 +92,9 @@ export function ProductForm({ editingProduct, onCancelEdit, onSaved }: ProductFo
         method: "POST",
         body: payload
       });
-      const result = (await response.json()) as { error?: string; data?: { imageUrl?: string } };
+      const result = (await response.json()) as UploadResponse;
       if (!response.ok || !result.data?.imageUrl) {
-        throw new Error(result.error ?? "图片上传失败");
+        throw new Error(getUploadErrorHint(result.errorCode, result.error));
       }
       setForm((prev) => ({ ...prev, imageUrl: result.data?.imageUrl ?? "" }));
       setMessage("图片上传成功");
