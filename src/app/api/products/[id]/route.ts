@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { deleteProductById, getProductById, updateProductById } from "@/lib/products-repo";
 import { validateProductPayload } from "@/lib/product-validation";
 import type { UpdateProductInput } from "@/types/product";
@@ -31,6 +32,8 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!deleted) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+    revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -53,6 +56,8 @@ export async function PUT(request: Request, { params }: Params) {
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+    revalidatePath("/products");
+    revalidatePath(`/products/${id}`);
 
     return NextResponse.json({ data: product });
   } catch (error) {

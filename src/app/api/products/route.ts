@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createProduct, listProducts } from "@/lib/products-repo";
 import { validateProductPayload } from "@/lib/product-validation";
 import type { CreateProductInput } from "@/types/product";
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validated.error }, { status: 422 });
     }
     const product = await createProduct(validated.data);
+    revalidatePath("/products");
+    revalidatePath(`/products/${product.id}`);
 
     return NextResponse.json({ data: product }, { status: 201 });
   } catch (error) {

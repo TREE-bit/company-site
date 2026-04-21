@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getProductById } from "@/lib/products-repo";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{ id: string }>;
 };
